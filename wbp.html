@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text and Image Grid</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #333;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .line {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #222;
+            color: white;
+            width: 100%;
+            margin: 10px 0;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .line canvas {
+            margin-right: 20px;
+            cursor: pointer;
+        }
+        .line p {
+            margin: 0;
+            font-size: 18px;
+        }
+        textarea {
+            width: 80%;
+            height: 150px;
+            margin: 20px;
+            padding: 10px;
+            font-size: 16px;
+            background-color: #444;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 5px;
+        }
+        input[type="number"] {
+            width: 80px;
+            margin: 10px;
+            padding: 5px;
+            font-size: 16px;
+            background-color: #444;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #555;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #444;
+        }
+        #downloadAll {
+            margin-top: 20px;
+            background-color: #007BFF;
+        }
+        #downloadAll:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Text area for input -->
+        <textarea id="inputParagraph" placeholder="Enter your paragraph here..."></textarea><br>
+
+        <!-- Input fields for image width, height, and font size -->
+        <label for="imageWidth">Image Width:</label>
+        <input type="number" id="imageWidth" placeholder="Width" value="300"><br>
+        <label for="imageHeight">Image Height:</label>
+        <input type="number" id="imageHeight" placeholder="Height" value="150"><br>
+        <label for="fontSize">Font Size:</label>
+        <input type="number" id="fontSize" placeholder="Font Size" value="20"><br>
+
+        <!-- Button to generate the lines -->
+        <button onclick="generateLines()">Generate Lines</button>
+
+        <!-- Button to download all images as a ZIP file -->
+        <button id="downloadAll" onclick="downloadAllImages()">Download All Images</button>
+        
+        <!-- Container where the lines and images will appear -->
+        <div class="line-container" id="line-container">
+            <!-- Lines will be generated here -->
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.7.1/dist/jszip.min.js"></script>
+    <script>
+        let images = []; // To store the generated image data
+
+        // Function to create downloadable image with text on canvas
+        function generateImage(text, width, height, fontSize) {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            
+            // Set the dark background
+            ctx.fillStyle = '#333'; // Dark background
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Set text style
+            ctx.fillStyle = 'white';
+            ctx.font = `${fontSize}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Word wrap and adjust text to fit in the image
+            const wrappedText = wrapText(ctx, text, width - 40); // 40 is padding
+            const textHeight = wrappedText.length * (fontSize + 4); // Approx height based on font size
+
+            // Center text vertically
+            const verticalPadding = (height - textHeight) / 2;
+
+            // Draw wrapped text in the center
+            wrappedText.forEach((line, index) => {
+                ctx.fillText(line, width / 2, verticalPadding + (index + 0.5) * (fontSize + 4));
+            });
+
+            // Add image to images array
+            images.push(canvas.toDataURL()); // Save the image as data URL
+            
+            return canvas;
+        }
+
+        // Function to wrap text within a given width
+        function wrapText(ctx, text, maxWidth) {
+            const words = text.split(' ');
+            let lines = [];
+            let currentLine = '';
+
+            words.forEach(word => {
+                const testLine = currentLine + word + ' ';
+                const width = ctx.measureText(testLine).width;
+                if (width < maxWidth) {
+                    currentLine = testLine;
+                } else {
+                    lines.push(currentLine);
+                    currentLine = word + ' ';
+                }
+            });
+            lines.push(currentLine);
+            return lines;
+        }
+
+        // Function to split the paragraph into lines and generate the HTML elements
+        function generateLines() {
+            const paragraph = document.getElementById('inputParagraph').value;
+            const container = document.getElementById('line-container');
+            const imageWidth = parseInt(document.getElementById('imageWidth').value, 10);
+            const imageHeight = parseInt(document.getElementById('imageHeight').value, 10);
+            const fontSize = parseInt(document.getElementById('fontSize').value, 10);
+            
+            // Clear previous results and images
+            container.innerHTML = '';
+            images = [];
+
+            // Split paragraph into lines by period (.)
+            const lines = paragraph.split('.').map(line => line.trim()).filter(line => line.length > 0);
+
+            // Loop through each line and create HTML elements
+            lines.forEach((lineText, index) => {
+                const lineElement = document.createElement('div');
+                lineElement.classList.add('line');
+                
+                // Generate image with text on it
+                const canvas = generateImage(lineText + ".", imageWidth, imageHeight, fontSize);
+
+                // Create the text paragraph (to show below the image as well)
+                const textElement = document.createElement('p');
+                textElement.textContent = lineText + "."; // Add the period at the end of the line
+
+                // Append canvas and text to the line element
+                lineElement.appendChild(canvas);
+                lineElement.appendChild(textElement);
+
+                // Append the line element to the container
+                container.appendChild(lineElement);
+            });
+        }
+
+        // Function to download all images as a ZIP file
+        function downloadAllImages() {
+            const zip = new JSZip();
+            images.forEach((imageData, index) => {
+                // Create a filename for each image
+                const filename = `image_${index + 1}.png`;
+                zip.file(filename, imageData.split(',')[1], { base64: true }); // Add image to zip
+            });
+
+            // Generate the zip file and trigger the download
+            zip.generateAsync({ type: "blob" })
+                .then(function(content) {
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(content);
+                    link.download = "images.zip"; // Name of the downloaded zip file
+                    link.click();
+                });
+        }
+    </script>
+
+</body>
+</html>
